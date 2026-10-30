@@ -1,0 +1,14 @@
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import mongoose from 'mongoose';
+const app=express();
+app.use(cors({origin:process.env.FRONTEND_ORIGIN||'http://localhost:5173'}));
+app.use(express.json());
+app.get('/api/health',(_req,res)=>res.json({status:'ok',service:'Amazon.in demo API'}));
+const productSchema=new mongoose.Schema({title:{type:String,required:true,trim:true},category:{type:String,required:true,index:true},price:{type:Number,required:true,min:0},mrp:{type:Number,required:true,min:0},image:{type:String,required:true},description:{type:String,default:''},rating:{type:Number,default:0},stock:{type:Number,default:0,min:0}},{timestamps:true});
+const Product=mongoose.model('Product',productSchema);
+app.get('/api/products',async(req,res)=>{try{const filter={};if(req.query.category&&req.query.category!=='All')filter.category=req.query.category;if(req.query.q)filter.title={$regex:String(req.query.q),$options:'i'};res.json(await Product.find(filter).limit(100).lean());}catch{res.status(500).json({error:'Unable to fetch products'});}});
+app.get('/api/products/:id',async(req,res)=>{try{const product=await Product.findById(req.params.id).lean();if(!product)return res.status(404).json({error:'Product not found'});res.json(product);}catch{res.status(400).json({error:'Invalid product ID'});}});
+const port=Number(process.env.PORT||5000);
+app.listen(port,async()=>{if(process.env.MONGODB_URI){try{await mongoose.connect(process.env.MONGODB_URI);console.log('MongoDB connected');}catch(err){console.error('MongoDB connection failed:',err.message);}}else console.log('MONGODB_URI is not configured; API starts without database connection.');console.log(`Amazon.in demo API listening on http://localhost:${port}`);});
